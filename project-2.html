@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault — Monthly Money Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0d1a;
+    --bg-elevated:#10142a;
+    --surface:#161b38;
+    --surface-2:#1b2144;
+    --border:rgba(150,160,220,0.14);
+    --border-soft:rgba(150,160,220,0.08);
+    --text-primary:#eef0fb;
+    --text-muted:#8b91b5;
+    --text-dim:#5c6288;
+    --violet:#8b6bff;
+    --violet-dim:rgba(139,107,255,0.16);
+    --coral:#ff7a68;
+    --coral-dim:rgba(255,122,104,0.16);
+    --cyan:#48d9c4;
+    --cyan-dim:rgba(72,217,196,0.16);
+    --amber:#ffb545;
+    --font-display:'Sora', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  body{
+    background:
+      radial-gradient(circle at 12% 8%, rgba(139,107,255,0.10), transparent 40%),
+      radial-gradient(circle at 90% 15%, rgba(72,217,196,0.08), transparent 35%),
+      var(--bg);
+    color:var(--text-primary);
+    font-family:var(--font-display);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{background:var(--violet-dim);}
+
+  a,button,input{font-family:inherit;}
+
+  /* ---------- Layout shell ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns:72px 1fr 340px;
+    min-height:100vh;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background:var(--bg-elevated);
+    border-right:1px solid var(--border-soft);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:22px 0;
+    gap:36px;
+  }
+  .sidebar .mark{
+    width:34px;height:34px;
+    border-radius:9px;
+    background:linear-gradient(135deg,var(--violet),var(--cyan));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;color:#0a0d1a;
+  }
+  .sidebar nav{
+    display:flex;flex-direction:column;gap:6px;
+    flex:1;
+  }
+  .sidebar .nav-item{
+    width:40px;height:40px;
+    border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .sidebar .nav-item svg{width:18px;height:18px;}
+  .sidebar .nav-item:hover{background:var(--surface);color:var(--text-muted);}
+  .sidebar .nav-item.active{background:var(--violet-dim);color:var(--violet);}
+  .sidebar .foot-dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan);
+  }
+
+  /* ---------- Main ---------- */
+  main{
+    padding:28px 32px 40px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    min-width:0;
+  }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .topbar h1{
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .topbar p{
+    color:var(--text-muted);
+    font-size:14px;
+    margin-top:4px;
+  }
+  .salary-field{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 16px;
+  }
+  .salary-field label{
+    font-size:12px;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .salary-field .cur{color:var(--cyan);font-family:var(--font-mono);font-size:15px;}
+  .salary-field input{
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text-primary);
+    font-family:var(--font-mono);
+    font-size:15px;
+    width:90px;
+  }
+
+  /* ---------- Hero row ---------- */
+  .hero-row{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr;
+    gap:16px;
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:22px;
+  }
+  .card-label{
+    font-size:12px;
+    color:var(--text-muted);
+    display:flex;align-items:center;gap:8px;
+  }
+  .card-label .dot{width:6px;height:6px;border-radius:50%;}
+
+  .hero-savings .big-number{
+    font-family:var(--font-mono);
+    font-size:46px;
+    font-weight:600;
+    margin-top:10px;
+    letter-spacing:-0.02em;
+    display:flex;align-items:baseline;gap:6px;
+  }
+  .hero-savings .big-number .sign{font-size:24px;color:var(--text-muted);}
+  .hero-savings .rate{
+    margin-top:6px;
+    font-size:13px;
+    color:var(--text-muted);
+  }
+  .hero-savings .rate strong{color:var(--cyan);font-family:var(--font-mono);}
+  .hero-savings .bar-track{
+    margin-top:16px;
+    height:6px;
+    border-radius:4px;
+    background:var(--surface-2);
+    overflow:hidden;
+  }
+  .hero-savings .bar-fill{
+    height:100%;
+    border-radius:4px;
+    background:linear-gradient(90deg,var(--violet),var(--cyan));
+    width:0%;
+    transition:width .5s ease;
+  }
+
+  .mini-stat .big-number{
+    font-family:var(--font-mono);
+    font-size:30px;
+    font-weight:600;
+    margin-top:14px;
+  }
+  .mini-stat .sub{
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:6px;
+  }
+
+  /* Goal ring */
+  .goal-ring-wrap{display:flex;align-items:center;gap:16px;margin-top:10px;}
+  .goal-ring{
+    width:64px;height:64px;border-radius:50%;
+    background:conic-gradient(var(--amber) 0deg, var(--surface-2) 0deg);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .goal-ring::after{
+    content:'';
+    width:46px;height:46px;border-radius:50%;
+    background:var(--surface);
+  }
+  .goal-text{font-size:12px;color:var(--text-muted);line-height:1.5;}
+  .goal-text b{color:var(--text-primary);font-family:var(--font-mono);font-weight:600;}
+
+  /* ---------- Expense inputs ---------- */
+  .expense-card h2, .chart-card h2{
+    font-size:15px;font-weight:600;margin-bottom:16px;
+  }
+  .expense-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 16px;
+  }
+  .expense-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:10px;
+    background:var(--surface-2);
+    border:1px solid transparent;
+    transition:border-color .15s ease;
+  }
+  .expense-row:focus-within{border-color:var(--violet);}
+  .expense-row .cat{
+    display:flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--text-muted);
+  }
+  .expense-row .swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .expense-row .amount-input{
+    display:flex;align-items:center;gap:3px;
+  }
+  .expense-row .amount-input span{color:var(--text-dim);font-family:var(--font-mono);font-size:13px;}
+  .expense-row input{
+    background:transparent;border:none;outline:none;
+    color:var(--text-primary);font-family:var(--font-mono);
+    font-size:14px;width:64px;text-align:right;
+  }
+
+  /* ---------- Charts row ---------- */
+  .charts-row{
+    display:grid;
+    grid-template-columns:1fr 1.4fr;
+    gap:16px;
+  }
+  .chart-card canvas{max-height:220px;}
+  .donut-wrap{position:relative;}
+  .donut-center{
+    position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;
+    pointer-events:none;
+  }
+  .donut-center .val{font-family:var(--font-mono);font-size:20px;font-weight:600;}
+  .donut-center .lbl{font-size:10px;color:var(--text-dim);margin-top:2px;}
+
+  .legend-row{
+    display:flex;flex-wrap:wrap;gap:10px 16px;
+    margin-top:14px;
+  }
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+  .legend-item .sw{width:8px;height:8px;border-radius:2px;}
+
+  /* ---------- AI Bro panel ---------- */
+  .bro-panel{
+    background:var(--bg-elevated);
+    border-left:1px solid var(--border-soft);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    position:sticky;
+    top:0;
+  }
+  .bro-head{
+    padding:22px 20px 16px;
+    border-bottom:1px solid var(--border-soft);
+    display:flex;align-items:center;gap:12px;
+  }
+  .bro-avatar{
+    width:38px;height:38px;border-radius:11px;
+    background:linear-gradient(135deg,var(--coral),var(--violet));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;flex-shrink:0;
+    box-shadow:0 0 18px rgba(255,122,104,0.25);
+  }
+  .bro-head h3{font-size:15px;font-weight:700;}
+  .bro-head p{font-size:11px;color:var(--cyan);display:flex;align-items:center;gap:5px;margin-top:2px;}
+  .bro-head p .pulse{
+    width:6px;height:6px;border-radius:50%;background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan);
+    animation:pulse 1.8s infinite ease-in-out;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .bro-feed{
+    flex:1;
+    overflow-y:auto;
+    padding:18px 18px 6px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .bro-feed::-webkit-scrollbar{width:5px;}
+  .bro-feed::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:4px;}
+
+  .msg{
+    max-width:88%;
+    font-size:13px;
+    line-height:1.5;
+    padding:12px 14px;
+    border-radius:14px;
+  }
+  .msg.bro{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-bottom-left-radius:4px;
+    align-self:flex-start;
+    color:var(--text-primary);
+  }
+  .msg.bro b{color:var(--cyan);}
+  .msg.bro .tag{
+    display:inline-block;
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--amber);
+    border:1px solid rgba(255,181,69,0.3);
+    background:rgba(255,181,69,0.08);
+    border-radius:5px;
+    padding:1px 6px;
+    margin-bottom:6px;
+  }
+  .msg.user{
+    background:var(--violet-dim);
+    border:1px solid rgba(139,107,255,0.3);
+    border-bottom-right-radius:4px;
+    align-self:flex-end;
+    color:var(--text-primary);
+  }
+
+  .bro-quick{
+    padding:10px 18px;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    border-top:1px solid var(--border-soft);
+  }
+  .chip-btn{
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    font-size:11.5px;
+    padding:7px 11px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .chip-btn:hover{border-color:var(--violet);color:var(--text-primary);}
+
+  .bro-input{
+    display:flex;gap:8px;
+    padding:14px 18px 20px;
+  }
+  .bro-input input{
+    flex:1;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:11px 14px;
+    color:var(--text-primary);
+    font-size:13px;
+    outline:none;
+  }
+  .bro-input input:focus{border-color:var(--violet);}
+  .bro-input button{
+    background:linear-gradient(135deg,var(--violet),var(--coral));
+    border:none;
+    border-radius:12px;
+    width:42px;
+    color:#0a0d1a;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;
+  }
+  .bro-input button:hover{filter:brightness(1.08);}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:1180px){
+    .shell{grid-template-columns:72px 1fr;}
+    .bro-panel{
+      grid-column:1 / -1;
+      position:static;
+      height:auto;
+      border-left:none;
+      border-top:1px solid var(--border-soft);
+    }
+    .bro-feed{max-height:340px;}
+    .hero-row{grid-template-columns:1fr 1fr;}
+    .charts-row{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .sidebar{display:none;}
+    .shell{grid-template-columns:1fr;}
+    .hero-row{grid-template-columns:1fr;}
+    .expense-grid{grid-template-columns:1fr;}
+    main{padding:20px 16px 32px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  :focus-visible{outline:2px solid var(--violet);outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="mark">V</div>
+    <nav>
+      <div class="nav-item active" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      </div>
+      <div class="nav-item" title="Transactions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+      </div>
+      <div class="nav-item" title="Goals">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+      </div>
+      <div class="nav-item" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </nav>
+    <div class="foot-dot" title="Synced"></div>
+  </aside>
+
+  <!-- Main -->
+
+  <main>
+
+    <div class="topbar">
+      <div>
+        <h1 id="greeting">Evening check-in</h1>
+        <p>Here's where September stands so far.</p>
+      </div>
+      <div class="salary-field">
+        <label>Monthly salary</label>
+        <span class="cur">€</span>
+        <input type="number" id="salaryInput" value="4200" min="0">
+      </div>
+    </div>
+
+    <div class="hero-row">
+      <div class="card hero-savings">
+        <div class="card-label"><span class="dot" style="background:var(--cyan)"></span>Net savings this month</div>
+        <div class="big-number"><span class="sign">€</span><span id="netSavings">0</span></div>
+        <div class="rate">Savings rate: <strong id="savingsRate">0%</strong> of income</div>
+        <div class="bar-track"><div class="bar-fill" id="rateBar"></div></div>
+      </div>
+
+      <div class="card mini-stat">
+        <div class="card-label"><span class="dot" style="background:var(--coral)"></span>Total expenses</div>
+        <div class="big-number" id="totalExpenses">€0</div>
+        <div class="sub" id="expenseSub">0 categories tracked</div>
+      </div>
+
+      <div class="card mini-stat">
+        <div class="card-label"><span class="dot" style="background:var(--amber)"></span>Savings goal</div>
+        <div class="goal-ring-wrap">
+          <div class="goal-ring" id="goalRing"></div>
+          <div class="goal-text">Target <b id="goalTargetLbl">€800</b><br>You're at <b id="goalPct">0%</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card expense-card">
+      <h2>Monthly expenses</h2>
+      <div class="expense-grid" id="expenseGrid"></div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card chart-card">
+        <h2>Where it's going</h2>
+        <div class="donut-wrap">
+          <canvas id="donutChart"></canvas>
+          <div class="donut-center">
+            <div class="val" id="donutCenterVal">€0</div>
+            <div class="lbl">spent</div>
+          </div>
+        </div>
+        <div class="legend-row" id="donutLegend"></div>
+      </div>
+
+      <div class="card chart-card">
+        <h2>6-month trend</h2>
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- AI Bro panel -->
+  <aside class="bro-panel">
+    <div class="bro-head">
+      <div class="bro-avatar">🤙</div>
+      <div>
+        <h3>Bro</h3>
+        <p><span class="pulse"></span>watching your vault live</p>
+      </div>
+    </div>
+
+    <div class="bro-feed" id="broFeed"></div>
+
+    <div class="bro-quick">
+      <button class="chip-btn" data-q="tip">Give me a tip</button>
+      <button class="chip-btn" data-q="goal">Set a savings goal</button>
+      <button class="chip-btn" data-q="breakdown">Break it down</button>
+    </div>
+
+    <div class="bro-input">
+      <input type="text" id="broInput" placeholder="Ask bro anything...">
+      <button id="broSend" title="Send">➤</button>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ---------------- State ---------------- */
+const categories = [
+  { key:'rent',    label:'Rent & bills',   color:'#8b6bff', amount:1350 },
+  { key:'food',    label:'Groceries',      color:'#48d9c4', amount:420  },
+  { key:'transport',label:'Transport',     color:'#ffb545', amount:110  },
+  { key:'subs',    label:'Subscriptions',  color:'#ff7a68', amount:65   },
+  { key:'fun',     label:'Going out',      color:'#5ea1ff', amount:230  },
+  { key:'other',   label:'Other',          color:'#c58bff', amount:150  },
+];
+
+let salary = 4200;
+let savingsGoal = 800;
+
+const trendHistory = [
+  { m:'Apr', income:4100, expenses:2700 },
+  { m:'May', income:4100, expenses:2950 },
+  { m:'Jun', income:4200, expenses:2600 },
+  { m:'Jul', income:4200, expenses:3100 },
+  { m:'Aug', income:4200, expenses:2450 },
+];
+
+/* ---------------- Helpers ---------------- */
+const eur = n => '€' + Math.round(n).toLocaleString('en-US');
+const totalExpenses = () => categories.reduce((s,c)=>s+Number(c.amount||0),0);
+
+function greetByTime(){
+  const h = new Date().getHours();
+  const el = document.getElementById('greeting');
+  if(h < 12) el.textContent = 'Morning check-in';
+  else if(h < 18) el.textContent = 'Afternoon check-in';
+  else el.textContent = 'Evening check-in';
+}
+
+/* ---------------- Render: expense inputs ---------------- */
+const expenseGrid = document.getElementById('expenseGrid');
+function buildExpenseRows(){
+  expenseGrid.innerHTML = '';
+  categories.forEach(cat=>{
+    const row = document.createElement('div');
+    row.className = 'expense-row';
+    row.innerHTML = `
+      <div class="cat"><span class="swatch" style="background:${cat.color}"></span>${cat.label}</div>
+      <div class="amount-input"><span>€</span><input type="number" min="0" value="${cat.amount}" data-key="${cat.key}"></div>
+    `;
+    expenseGrid.appendChild(row);
+  });
+  expenseGrid.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const cat = categories.find(c=>c.key===e.target.dataset.key);
+      cat.amount = Number(e.target.value)||0;
+      recalculate(true);
+    });
+  });
+}
+
+/* ---------------- Charts ---------------- */
+let donutChart, trendChart;
+
+function initCharts(){
+  const donutCtx = document.getElementById('donutChart');
+  donutChart = new Chart(donutCtx, {
+    type:'doughnut',
+    data:{
+      labels: categories.map(c=>c.label),
+      datasets:[{
+        data: categories.map(c=>c.amount),
+        backgroundColor: categories.map(c=>c.color),
+        borderColor: '#161b38',
+        borderWidth: 3,
+        hoverOffset: 6,
+      }]
+    },
+    options:{
+      cutout:'72%',
+      plugins:{ legend:{ display:false }, tooltip:{
+        backgroundColor:'#1b2144', titleColor:'#eef0fb', bodyColor:'#8b91b5',
+        borderColor:'rgba(150,160,220,0.14)', borderWidth:1, padding:10,
+        callbacks:{ label:ctx => ` ${ctx.label}: €${ctx.parsed.toLocaleString()}` }
+      }},
+      animation:{ duration:500 }
+    }
+  });
+
+  const trendCtx = document.getElementById('trendChart');
+  trendChart = new Chart(trendCtx, {
+    type:'bar',
+    data:{
+      labels: [...trendHistory.map(t=>t.m), 'Sep'],
+      datasets:[
+        {
+          type:'line',
+          label:'Income',
+          data:[...trendHistory.map(t=>t.income), salary],
+          borderColor:'#48d9c4',
+          backgroundColor:'#48d9c4',
+          pointRadius:3,
+          pointBackgroundColor:'#48d9c4',
+          tension:0.35,
+          borderWidth:2,
+          yAxisID:'y',
+        },
+        {
+          type:'bar',
+          label:'Expenses',
+          data:[...trendHistory.map(t=>t.expenses), totalExpenses()],
+          backgroundColor: ctx => ctx.dataIndex === trendHistory.length ? '#8b6bff' : 'rgba(255,122,104,0.55)',
+          borderRadius:6,
+          maxBarThickness:28,
+          yAxisID:'y',
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#8b91b5', boxWidth:10, boxHeight:10, font:{family:'IBM Plex Mono', size:11} } },
+        tooltip:{
+          backgroundColor:'#1b2144', titleColor:'#eef0fb', bodyColor:'#8b91b5',
+          borderColor:'rgba(150,160,220,0.14)', borderWidth:1, padding:10,
+          callbacks:{ label:ctx => ` ${ctx.dataset.label}: €${ctx.parsed.y.toLocaleString()}` }
+        }
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ color:'#5c6288', font:{family:'IBM Plex Mono', size:11} } },
+        y:{ grid:{ color:'rgba(150,160,220,0.08)' }, ticks:{ color:'#5c6288', font:{family:'IBM Plex Mono', size:10}, callback:v=>'€'+v } }
+      },
+      animation:{ duration:500 }
+    }
+  });
+}
+
+function updateCharts(){
+  donutChart.data.datasets[0].data = categories.map(c=>c.amount);
+  donutChart.update();
+
+  trendChart.data.datasets[0].data = [...trendHistory.map(t=>t.income), salary];
+  trendChart.data.datasets[1].data = [...trendHistory.map(t=>t.expenses), totalExpenses()];
+  trendChart.update();
+}
+
+/* ---------------- Legend ---------------- */
+function buildLegend(){
+  const legend = document.getElementById('donutLegend');
+  legend.innerHTML = categories.map(c=>`
+    <div class="legend-item"><span class="sw" style="background:${c.color}"></span>${c.label}</div>
+  `).join('');
+}
+
+/* ---------------- Recalculate ---------------- */
+function recalculate(userTriggered){
+  const exp = totalExpenses();
+  const net = salary - exp;
+  const rate = salary > 0 ? Math.max(0, Math.min(100, (net/salary)*100)) : 0;
+
+  document.getElementById('netSavings').textContent = Math.round(net).toLocaleString('en-US');
+  document.getElementById('savingsRate').textContent = rate.toFixed(1) + '%';
+  document.getElementById('rateBar').style.width = Math.max(0,Math.min(100,rate)) + '%';
+  document.getElementById('totalExpenses').textContent = eur(exp);
+  document.getElementById('expenseSub').textContent = categories.length + ' categories tracked';
+  document.getElementById('donutCenterVal').textContent = eur(exp);
+
+  const goalPct = savingsGoal > 0 ? Math.max(0, Math.min(100, (net/savingsGoal)*100)) : 0;
+  document.getElementById('goalPct').textContent = Math.round(goalPct) + '%';
+  document.getElementById('goalTargetLbl').textContent = eur(savingsGoal);
+  document.getElementById('goalRing').style.background =
+    `conic-gradient(var(--amber) ${goalPct*3.6}deg, var(--surface-2) 0deg)`;
+
+  updateCharts();
+  buildLegend();
+
+  if(userTriggered) maybeAutoComment(net, rate, exp);
+}
+
+/* ---------------- Bro chat ---------------- */
+const broFeed = document.getElementById('broFeed');
+
+function addMsg(text, who){
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.innerHTML = text;
+  broFeed.appendChild(div);
+  broFeed.scrollTop = broFeed.scrollHeight;
+}
+
+let lastCommentTier = null;
+function tierFor(rate){
+  if(rate < 5) return 'critical';
+  if(rate < 15) return 'tight';
+  if(rate < 25) return 'solid';
+  return 'strong';
+}
+
+function maybeAutoComment(net, rate, exp){
+  const tier = tierFor(rate);
+  if(tier === lastCommentTier) return;
+  lastCommentTier = tier;
+
+  const lines = {
+    critical: `<span class="tag">HEADS UP</span>You're saving under 5% right now — expenses are eating most of the salary. Look at <b>${topCategory()}</b> first, that's your biggest lever.`,
+    tight: `<span class="tag">OK-ISH</span>You're banking <b>${eur(net)}</b> this month, about ${rate.toFixed(0)}% of income. Aim for 20% — trim <b>${topCategory()}</b> a bit and you're there.`,
+    solid: `<span class="tag">SOLID</span>Nice, ${rate.toFixed(0)}% savings rate. You're saving <b>${eur(net)}</b> this month. Keep this pace and you'll clear your goal early.`,
+    strong: `<span class="tag">STRONG</span>${rate.toFixed(0)}% savings rate is genuinely great. <b>${eur(net)}</b> banked this month — worth thinking about where that extra cash should go next.`,
+  };
+  addMsg(lines[tier], 'bro');
+}
+
+function topCategory(){
+  return [...categories].sort((a,b)=>b.amount-a.amount)[0].label;
+}
+
+const tips = [
+  "Automate the transfer: move savings the day salary lands, not at month-end. What's left becomes your real spending money.",
+  "Subscriptions are the easiest silent leak. A quick audit every quarter usually finds €20-40/month doing nothing for you.",
+  "Try the 50/30/20 split as a baseline: 50% needs, 30% wants, 20% savings — then adjust to your actual goals.",
+  "Round-up savings add up fast without feeling like a sacrifice. Small, boring, consistent beats big and occasional.",
+];
+let tipIndex = 0;
+
+function handleQuick(kind){
+  if(kind === 'tip'){
+    addMsg(`<span class="tag">TIP</span>${tips[tipIndex % tips.length]}`, 'bro');
+    tipIndex++;
+  } else if(kind === 'goal'){
+    addMsg('Set a savings goal', 'user');
+    addMsg(`Your current target is <b>${eur(savingsGoal)}</b>/month. Type a new number in chat, like "goal 1000", and I'll update the ring.`, 'bro');
+  } else if(kind === 'breakdown'){
+    addMsg('Break it down', 'user');
+    const exp = totalExpenses();
+    const sorted = [...categories].sort((a,b)=>b.amount-a.amount);
+    const lines = sorted.map(c=>`${c.label}: <b>${eur(c.amount)}</b> (${exp? Math.round(c.amount/exp*100):0}%)`).join('<br>');
+    addMsg(`<span class="tag">BREAKDOWN</span>${lines}`, 'bro');
+  }
+}
+
+document.querySelectorAll('.chip-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> handleQuick(btn.dataset.q));
+});
+
+function respondToFreeText(raw){
+  const text = raw.toLowerCase();
+  const goalMatch = text.match(/goal\s*(\d+)/);
+  if(goalMatch){
+    savingsGoal = Number(goalMatch[1]);
+    recalculate(false);
+    addMsg(`Goal updated to <b>${eur(savingsGoal)}</b>/month. Ring's tracking it now.`, 'bro');
+    return;
+  }
+  if(text.includes('save') || text.includes('saving')){
+    const exp = totalExpenses();
+    const net = salary - exp;
+    addMsg(`You're saving <b>${eur(net)}</b> this month, that's ${(salary>0?(net/salary*100):0).toFixed(1)}% of income. ${net/salary < 0.15 ? "There's room to push this higher." : "That's a healthy pace."}`, 'bro');
+    return;
+  }
+  if(text.includes('expense') || text.includes('spend')){
+    handleQuick('breakdown');
+    return;
+  }
+  if(text.includes('tip') || text.includes('advice')){
+    handleQuick('tip');
+    return;
+  }
+  addMsg(`I've got you on savings rate, goals, and expense breakdowns — try "give me a tip", "break it down", or "goal 1000".`, 'bro');
+}
+
+document.getElementById('broSend').addEventListener('click', sendUserMsg);
+document.getElementById('broInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') sendUserMsg();
+});
+function sendUserMsg(){
+  const inp = document.getElementById('broInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  addMsg(val, 'user');
+  inp.value = '';
+  setTimeout(()=> respondToFreeText(val), 250);
+}
+
+/* ---------------- Salary input ---------------- */
+document.getElementById('salaryInput').addEventListener('input', e=>{
+  salary = Number(e.target.value)||0;
+  recalculate(true);
+});
+
+/* ---------------- Init ---------------- */
+greetByTime();
+buildExpenseRows();
+initCharts();
+buildLegend();
+recalculate(false);
+
+setTimeout(()=>{
+  addMsg(`<span class="tag">WELCOME</span>Hey — I'm Bro. I'll watch your salary vs. expenses and flag anything worth knowing. Adjust numbers on the left and I'll react.`, 'bro');
+  maybeAutoComment(salary-totalExpenses(), ((salary-totalExpenses())/salary)*100, totalExpenses());
+}, 400);
+</script>
+
+</body>
+</html>
